@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test Appointments - Senior Care</title>
+  <style>
+    body {
+      max-width: 650px;
+      margin: 35px auto;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #eef3f6;
+      color: #10263a;
+    }
+
+    main {
+      padding: 24px;
+      background: white;
+      border-radius: 16px;
+    }
+
+    label {
+      display: block;
+      margin: 16px 0 8px;
+      font-weight: bold;
+    }
+
+    input, textarea, button {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 12px;
+      font: inherit;
+      border-radius: 8px;
+    }
+
+    input, textarea {
+      border: 1px solid #bdcbd4;
+    }
+
+    button {
+      margin-top: 16px;
+      border: none;
+      background: #0f6e7c;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #result {
+      margin-top: 18px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .appointment {
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid #d5e0e8;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Appointment Test</h1>
+  <p>Test saving an appointment for test_senior, person ID 3.</p>
+
+  <form id="appointmentForm">
+    <label for="personId">Person ID</label>
+    <input id="personId" type="number" value="3" min="1" required>
+
+    <label for="title">Appointment title</label>
+    <input id="title" maxlength="150" value="Doctor Visit Test" required>
+
+    <label for="appointmentDate">Appointment date and time</label>
+    <input id="appointmentDate" type="datetime-local" required>
+
+    <label for="notes">Notes (optional)</label>
+    <textarea id="notes" rows="3" maxlength="5000"
+      placeholder="Doctor name, clinic, or other details"></textarea>
+
+    <button id="saveButton" type="submit">Save Appointment</button>
+  </form>
+
+  <button id="loadButton" type="button">Load Appointments</button>
+
+  <p id="result" role="status" aria-live="polite"></p>
+
+  <h2>Saved Appointments</h2>
+  <div id="appointmentsList">No appointments loaded yet.</div>
+</main>
+
+<script>
+  const form = document.getElementById("appointmentForm");
+  const saveButton = document.getElementById("saveButton");
+  const loadButton = document.getElementById("loadButton");
+  const result = document.getElementById("result");
+  const appointmentsList = document.getElementById("appointmentsList");
+
+  async function requestApi(method, personId, body) {
+    const options = {
+      method,
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" }
+    };
+
+    if (body !== undefined) {
+      options.headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(
+      "api/appointments.php?person_id=" +
+        encodeURIComponent(personId),
+      options
+    );
+
+    const text = await response.text();
+    let data;
+
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(
+        "Unexpected server response (HTTP " + response.status +
+        "): " + text.slice(0, 300)
+      );
+    }
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Request failed.");
+    }
+
+    return data;
+  }
+
+  async function loadAppointments() {
+    const personId = Number(
+      document.getElementById("personId").value
+    );
+
+    const data = await requestApi("GET", personId);
+
+    appointmentsList.replaceChildren();
+
+    if (data.appointments.length === 0) {
+      appointmentsList.textContent = "No appointments saved yet.";
+      return;
+    }
+
+    data.appointments.forEach(item => {
+      const card = document.createElement("div");
+      card.className = "appointment";
+
+      const title = document.createElement("strong");
+      title.textContent = item.title;
+
+      const details = document.createElement("p");
+      details.textContent =
+        "Date and time: " + item.appointment_datetime +
+        "\nNotes: " + (item.notes || "None") +
+        "\nAppointment ID: " + item.id;
+
+      card.append(title, details);
+      appointmentsList.appendChild(card);
+    });
+  }
+
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    saveButton.disabled = true;
+    result.textContent = "Saving appointment...";
+
+    try {
+      const personId = Number(
+        document.getElementById("personId").value
+      );
+
+      const data = await requestApi("POST", personId, {
+        person_id: personId,
+        title: document.getElementById("title").value.trim(),
+        appointment_datetime:
+          document.getElementById("appointmentDate").value,
+        notes: document.getElementById("notes").value.trim()
+      });
+
+      result.textContent =
+        data.message + "\nAppointment ID: " + data.appointment.id;
+
+      await loadAppointments();
+
+    } catch (error) {
+      result.textContent = "Error: " + error.message;
+
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+
+  loadButton.addEventListener("click", async () => {
+    loadButton.disabled = true;
+
+    try {
+      await loadAppointments();
+      result.textContent = "Appointments loaded successfully.";
+    } catch (error) {
+      result.textContent = "Error: " + error.message;
+    } finally {
+      loadButton.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

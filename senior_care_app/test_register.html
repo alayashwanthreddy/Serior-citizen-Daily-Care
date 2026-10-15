@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Test Registration - Senior Care</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 30px 16px;
+      min-height: 100vh;
+      background: #101316;
+      color: #f4f7f8;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 30px auto;
+      padding: 28px;
+      background: #202a31;
+      border: 1px solid #3d5967;
+      border-radius: 18px;
+    }
+
+    h1 {
+      font-size: 26px;
+    }
+
+    p {
+      color: #c0cbd1;
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      margin: 18px 0 8px;
+      font-weight: bold;
+    }
+
+    input,
+    select,
+    button {
+      width: 100%;
+      padding: 13px;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+
+    input,
+    select {
+      border: 1px solid #526976;
+      background: #151c20;
+      color: white;
+    }
+
+    button {
+      margin-top: 24px;
+      border: none;
+      background: #32d1dc;
+      color: #09353d;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    #result {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 10px;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      display: none;
+    }
+
+    .success {
+      display: block !important;
+      background: #163b2d;
+      color: #9af0bf;
+    }
+
+    .error {
+      display: block !important;
+      background: #482626;
+      color: #ffb5b5;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>Create a Test Account</h1>
+
+    <p>
+      This page tests the PHP registration API and saves the
+      account in your existing MySQL database.
+    </p>
+
+    <form id="registerForm">
+
+      <label for="name">Full name</label>
+      <input
+        type="text"
+        id="name"
+        name="name"
+        minlength="2"
+        maxlength="100"
+        required
+        autocomplete="name"
+        placeholder="Enter your name">
+
+      <label for="email">Email address</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        maxlength="254"
+        required
+        autocomplete="email"
+        placeholder="test@example.com">
+
+      <label for="password">Password</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        minlength="8"
+        maxlength="4096"
+        required
+        autocomplete="new-password"
+        placeholder="At least 8 characters">
+
+      <label for="role">Account type</label>
+      <select id="role" name="role" required>
+        <option value="senior">Senior citizen</option>
+        <option value="guardian">Guardian</option>
+      </select>
+
+      <button type="submit" id="submitButton">
+        Create Account
+      </button>
+
+    </form>
+
+    <div id="result" role="status" aria-live="polite"></div>
+
+  </div>
+
+  <script>
+    const form = document.getElementById("registerForm");
+    const button = document.getElementById("submitButton");
+    const result = document.getElementById("result");
+
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+
+      button.disabled = true;
+      button.textContent = "Creating account...";
+
+      result.className = "";
+      result.style.display = "none";
+      result.textContent = "";
+
+      const payload = {
+        name: document.getElementById("name").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        password: document.getElementById("password").value,
+        role: document.getElementById("role").value
+      };
+
+      try {
+        const response = await fetch("api/register.php", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const responseText = await response.text();
+
+        let data;
+
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          throw new Error(
+            "The server did not return valid JSON. " +
+            "HTTP status: " + response.status +
+            ". Response: " + responseText.slice(0, 500)
+          );
+        }
+
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.message || "Registration failed."
+          );
+        }
+
+        result.className = "success";
+
+        result.textContent =
+          "Registration successful!\n\n" +
+          "Name: " + data.user.name + "\n" +
+          "Email: " + data.user.email + "\n" +
+          "Role: " + data.user.role + "\n" +
+          "User ID: " + data.user.id;
+
+        form.reset();
+
+      } catch (error) {
+        result.className = "error";
+        result.textContent = "Error: " + error.message;
+
+      } finally {
+        button.disabled = false;
+        button.textContent = "Create Account";
+      }
+    });
+  </script>
+
+</body>
+</html>

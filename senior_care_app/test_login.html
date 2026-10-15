@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Login - Senior Care</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 30px 16px;
+      min-height: 100vh;
+      background: #101316;
+      color: #f4f7f8;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 450px;
+      margin: 40px auto;
+      padding: 28px;
+      background: #202a31;
+      border: 1px solid #3d5967;
+      border-radius: 18px;
+    }
+
+    h1 {
+      font-size: 27px;
+    }
+
+    p {
+      color: #c0cbd1;
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      margin: 18px 0 8px;
+      font-weight: bold;
+    }
+
+    input,
+    button {
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+
+    input {
+      border: 1px solid #526976;
+      background: #151c20;
+      color: white;
+    }
+
+    button {
+      margin-top: 22px;
+      border: none;
+      background: #32d1dc;
+      color: #09353d;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    #result {
+      display: none;
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 10px;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .success {
+      display: block !important;
+      background: #163b2d;
+      color: #9af0bf;
+    }
+
+    .error {
+      display: block !important;
+      background: #482626;
+      color: #ffb5b5;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <h1>Sign in</h1>
+
+    <p>
+      Test the PHP login endpoint using an account
+      already registered in your database.
+    </p>
+
+    <form id="loginForm">
+      <label for="email">Email address</label>
+      <input
+        type="email"
+        id="email"
+        required
+        maxlength="254"
+        autocomplete="username"
+        placeholder="Enter your registered email">
+
+      <label for="password">Password</label>
+      <input
+        type="password"
+        id="password"
+        required
+        maxlength="4096"
+        autocomplete="current-password"
+        placeholder="Enter your password">
+
+      <button type="submit" id="loginButton">
+        Sign in
+      </button>
+    </form>
+
+    <div id="result" role="status" aria-live="polite"></div>
+  </main>
+
+  <script>
+    const form = document.getElementById("loginForm");
+    const button = document.getElementById("loginButton");
+    const result = document.getElementById("result");
+
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+
+      button.disabled = true;
+      button.textContent = "Signing in...";
+
+      result.className = "";
+      result.style.display = "none";
+      result.textContent = "";
+
+      const payload = {
+        email: document.getElementById("email").value.trim(),
+        password: document.getElementById("password").value
+      };
+
+      try {
+        const response = await fetch("api/login.php", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const responseText = await response.text();
+        let data;
+
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          throw new Error(
+            "The server did not return valid JSON. HTTP status: " +
+            response.status + ". Response: " +
+            responseText.slice(0, 300)
+          );
+        }
+
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.message || "Login failed."
+          );
+        }
+
+        result.className = "success";
+        result.textContent =
+          "Login successful!\n\n" +
+          "Name: " + data.user.name + "\n" +
+          "Email: " + data.user.email + "\n" +
+          "Role: " + data.user.role + "\n\n" +
+          "The server has created an authenticated session.";
+
+      } catch (error) {
+        result.className = "error";
+        result.textContent = "Error: " + error.message;
+
+      } finally {
+        button.disabled = false;
+        button.textContent = "Sign in";
+      }
+    });
+  </script>
+</body>
+</html>

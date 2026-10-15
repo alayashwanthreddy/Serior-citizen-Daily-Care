@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test PHP Logout</title>
+</head>
+<body>
+  <h1>Test PHP Session</h1>
+
+  <button id="logoutButton">Test Logout</button>
+
+  <pre id="result">Click the button to test logout.</pre>
+
+  <script>
+    const button = document.getElementById("logoutButton");
+    const result = document.getElementById("result");
+
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      result.textContent = "Testing logout...";
+
+      try {
+        const logoutResponse = await fetch("api/logout.php", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Accept": "application/json"
+          }
+        });
+
+        const logoutText = await logoutResponse.text();
+
+        result.textContent =
+          "Logout HTTP status: " + logoutResponse.status +
+          "\nResponse: " + logoutText;
+
+        if (!logoutResponse.ok) {
+          return;
+        }
+
+        const meResponse = await fetch("api/me.php", {
+          credentials: "same-origin",
+          headers: {
+            "Accept": "application/json"
+          }
+        });
+
+        const meText = await meResponse.text();
+
+        result.textContent +=
+          "\n\nSession check HTTP status: " + meResponse.status +
+          "\nResponse: " + meText;
+
+      } catch (error) {
+        result.textContent = "Error: " + error.message;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

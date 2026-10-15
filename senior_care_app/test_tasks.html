@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Test Daily Tasks - Senior Care</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px 16px;
+      background: #101316;
+      color: #f4f7f8;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 650px;
+      margin: 20px auto;
+      padding: 25px;
+      background: #202a31;
+      border: 1px solid #3d5967;
+      border-radius: 18px;
+    }
+
+    h1, h2 {
+      color: #f4f7f8;
+    }
+
+    p {
+      color: #c0cbd1;
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      margin: 16px 0 8px;
+      font-weight: bold;
+    }
+
+    input, select, button {
+      font: inherit;
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    input, select {
+      width: 100%;
+      background: #151c20;
+      border: 1px solid #526976;
+      color: white;
+    }
+
+    button {
+      border: none;
+      background: #32d1dc;
+      color: #09353d;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .primary {
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    .days {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .days label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin: 0;
+      font-weight: normal;
+    }
+
+    .days input {
+      width: auto;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .actions button {
+      flex: 1;
+    }
+
+    #result {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+
+    .success {
+      display: block !important;
+      color: #9af0bf;
+      background: #163b2d;
+    }
+
+    .error {
+      display: block !important;
+      color: #ffb5b5;
+      background: #482626;
+    }
+
+    .task {
+      border-top: 1px solid #40535d;
+      padding: 14px 0;
+    }
+
+    .task strong {
+      color: #32d1dc;
+    }
+
+    code {
+      color: #9af0bf;
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="container">
+
+    <h1>Daily Timetable Test</h1>
+
+    <p>
+      This page tests the PHP task API using your existing
+      MySQL database. Sign in first using your test login page.
+    </p>
+
+    <form id="taskForm">
+
+      <label for="personId">Person ID</label>
+      <input
+        type="number"
+        id="personId"
+        value="3"
+        min="1"
+        required>
+
+      <label for="title">Activity name</label>
+      <input
+        type="text"
+        id="title"
+        maxlength="150"
+        placeholder="Example: Morning tablets"
+        required>
+
+      <label for="category">Activity type</label>
+      <select id="category" required>
+        <option value="medication">Medication</option>
+        <option value="meal">Meal</option>
+        <option value="water">Water</option>
+        <option value="exercise">Exercise</option>
+        <option value="rest">Rest / Sleep</option>
+        <option value="other">Other</option>
+      </select>
+
+      <label for="taskTime">Scheduled time</label>
+      <input
+        type="time"
+        id="taskTime"
+        value="09:00"
+        required>
+
+      <label>Repeat on</label>
+
+      <div class="days">
+        <label><input type="checkbox" value="0" checked> Sun</label>
+        <label><input type="checkbox" value="1" checked> Mon</label>
+        <label><input type="checkbox" value="2" checked> Tue</label>
+        <label><input type="checkbox" value="3" checked> Wed</label>
+        <label><input type="checkbox" value="4" checked> Thu</label>
+        <label><input type="checkbox" value="5" checked> Fri</label>
+        <label><input type="checkbox" value="6" checked> Sat</label>
+      </div>
+
+      <button class="primary" id="addButton" type="submit">
+        Add Activity
+      </button>
+
+    </form>
+
+    <div class="actions">
+      <button type="button" id="loadButton">
+        Load Activities
+      </button>
+    </div>
+
+    <div id="result" role="status" aria-live="polite"></div>
+
+    <section>
+      <h2>Saved Activities</h2>
+      <div id="taskList">
+        <p>Click Load Activities to retrieve saved records.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const form = document.getElementById("taskForm");
+    const result = document.getElementById("result");
+    const addButton = document.getElementById("addButton");
+    const loadButton = document.getElementById("loadButton");
+    const taskList = document.getElementById("taskList");
+
+    function showResult(message, success) {
+      result.className = success ? "success" : "error";
+      result.textContent = message;
+    }
+
+    async function apiRequest(url, options = {}) {
+      const response = await fetch(url, {
+        credentials: "same-origin",
+        ...options,
+        headers: {
+          "Accept": "application/json",
+          ...(options.headers || {})
+        }
+      });
+
+      const responseText = await response.text();
+
+      let data;
+
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        throw new Error(
+          "The server returned a non-JSON response. HTTP " +
+          response.status + ": " + responseText.slice(0, 300)
+        );
+      }
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || "The request failed."
+        );
+      }
+
+      return data;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[character]);
+    }
+
+    function displayTasks(tasks) {
+      if (!tasks.length) {
+        taskList.innerHTML = "<p>No activities saved for this person yet.</p>";
+        return;
+      }
+
+      taskList.innerHTML = tasks.map(task => `
+        <div class="task">
+          <strong>${escapeHtml(task.title)}</strong>
+          <p>
+            Category: ${escapeHtml(task.category)}<br>
+            Time: ${escapeHtml(task.task_time)}<br>
+            Repeat days: ${
+              Array.isArray(task.days)
+                ? escapeHtml(task.days.join(", "))
+                : "Not available"
+            }<br>
+            Today's status: ${escapeHtml(task.today_status || "Pending")}<br>
+            Task ID: ${escapeHtml(task.id)}
+          </p>
+        </div>
+      `).join("");
+    }
+
+    async function loadTasks() {
+      const personId = document.getElementById("personId").value;
+
+      if (!personId || Number(personId) < 1) {
+        showResult("Enter a valid person ID.", false);
+        return;
+      }
+
+      loadButton.disabled = true;
+
+      try {
+        const data = await apiRequest(
+          "api/tasks.php?person_id=" +
+          encodeURIComponent(personId)
+        );
+
+        displayTasks(data.tasks);
+
+        showResult(
+          "Activities loaded successfully. Count: " + data.tasks.length,
+          true
+        );
+
+      } catch (error) {
+        showResult("Load failed: " + error.message, false);
+
+      } finally {
+        loadButton.disabled = false;
+      }
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+
+      addButton.disabled = true;
+      result.className = "";
+      result.style.display = "none";
+
+      const days = Array.from(
+        document.querySelectorAll(".days input:checked")
+      ).map(input => Number(input.value));
+
+      if (days.length === 0) {
+        showResult("Choose at least one repeat day.", false);
+        addButton.disabled = false;
+        return;
+      }
+
+      const payload = {
+        person_id: Number(
+          document.getElementById("personId").value
+        ),
+        title: document.getElementById("title").value.trim(),
+        category: document.getElementById("category").value,
+        task_time: document.getElementById("taskTime").value,
+        days: days
+      };
+
+      try {
+        const data = await apiRequest("api/tasks.php", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        showResult(
+          "Activity saved successfully!\n" +
+          "Task ID: " + data.task.id + "\n" +
+          "Name: " + data.task.title,
+          true
+        );
+
+        document.getElementById("title").value = "";
+
+        await loadTasks();
+
+      } catch (error) {
+        showResult("Save failed: " + error.message, false);
+
+      } finally {
+        addButton.disabled = false;
+      }
+    });
+
+    loadButton.addEventListener("click", loadTasks);
+  </script>
+
+</body>
+</html>
